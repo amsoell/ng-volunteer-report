@@ -13,7 +13,7 @@ define('VOLWP_VOLUNTEER', 2);
 define('VOLWP_NOTSTATED', 'Z');
 
 $options = getopt('v', [
-	'lga:',
+	'lga::',
 	'datafile:',
 	'outfile::',
 	'precision::',
@@ -24,13 +24,16 @@ $options += [
 	'precision' => 2
 ];
 
-if (! (array_key_exists('lga', $options) && array_key_exists('datafile', $options))) {
+if (! (array_key_exists('datafile', $options))) {
 	// Print usage instructions
 	echo 'Usage: ' . basename(__FILE__) . ' --datafile=<datafile.csv> --lga=<LGA>';
 	exit;
 }
 
-$options['lga'] = explode(',', $options['lga']);
+if (array_key_exists('lga', $options)) {
+	// Split the LGA option into separate items
+	$options['lga'] = explode(',', $options['lga']);
+}
 
 /**
  * Process the datafile
@@ -41,7 +44,6 @@ $datafile_handle = fopen($options['datafile'], 'r') or die("Couldn't open datafi
 if ($datafile_handle) {
 	// Get the datafile keys
 	$datafile_keys = fgetcsv($datafile_handle);
-	$datafile_data = [];
 	$summary_data = [];
 
 	// Get the data
@@ -52,7 +54,7 @@ if ($datafile_handle) {
 		// Key up the data for easier access
 		$chunk = array_combine($datafile_keys, $chunk);
 
-		if (in_array($chunk['Region'], $options['lga'])) {
+		if (!array_key_exists('lga', $options) || in_array($chunk['Region'], $options['lga'])) {
 			// This is data we care about; Hang on to it.
 			$chunk = array_combine($datafile_keys, $chunk);
 			switch (strtoupper($chunk['VOLWP'])) {
@@ -72,8 +74,6 @@ if ($datafile_handle) {
 					update_total($summary_data, $chunk, 'unstated');
 					break;
 			}
-
-			$datafile_data[] = $chunk;
 		}
 	}
 } else {
@@ -86,7 +86,12 @@ if ($datafile_handle) {
 if (array_key_exists('v', $options)) echo "Total applicable records read: " . count($datafile_data) . "\n";
 
 foreach ($summary_data as $lga => $lga_summary) {
-	echo "Average volunteer rate for " . $lga . ": " . round($lga_summary['volunteers'] / $lga_summary['total'] * 100, $options['precision']) . "%\n";
+	echo "Average volunteer rate for " . $lga . ": ";
+	if ($lga_summary['total']==0) {
+		echo "No population data\n";
+	} else {
+		echo round($lga_summary['volunteers'] / $lga_summary['total'] * 100, $options['precision']) . "%\n";
+	}
 }
 
 if (array_key_exists('outfile', $options)) {
