@@ -15,13 +15,15 @@ define('VOLWP_NOTSTATED', 'Z');
 $options = getopt('v', [
 	'lga::',
 	'datafile:',
+	'report::',
 	'outfile::',
 	'precision::',
 ]);
 
 // Default parameters
 $options += [
-	'precision' => 2
+	'precision' => 2,
+	'report'    => 'overall'
 ];
 
 if (! (array_key_exists('datafile', $options))) {
@@ -81,41 +83,41 @@ if ($datafile_handle) {
 	die("Datafile is unreadable");
 }
 
+// Do additional calculations for per-age-group statistics
+$age_data = [];
+foreach ($summary_data as $lga_key => $lga_data) {
+	foreach ($lga_data['ages'] as $age_key => $data) {
+		if ($data['total'] == 0) {
+			$val = 0;
+		} else {
+			$val = $data['volunteers'] / $data['total'] * 100;
+		}
+
+		$age_data[$lga_key][$age_key] = $val;
+		//echo "$lga_key | $age_key\n";
+	}
+}
+
 /**
  * Wrapup code — output any data to the user
  */
 if (array_key_exists('v', $options)) echo "Total applicable records read: " . count($datafile_data) . "\n";
 
-foreach ($summary_data as $lga => $lga_summary) {
-	echo "Overall volunteer rate for " . $lga . ": ";
-	if ($lga_summary['total']==0) {
-		echo "No population data\n";
-	} else {
-		echo round($lga_summary['volunteers'] / $lga_summary['total'] * 100, $options['precision']) . "%\n";
-	}
-
-	foreach ($lga_summary['ages'] as $age => $age_data) {
-		echo "\tVolunteer rate for " . $age . " age range: ";
-		if ($age_data['total']==0) {
-			echo "No data for age range\n";
-		} else {
-			echo round($age_data['volunteers'] / $age_data['total'] * 100, $options['precision']) . "%\n";
+switch (strtolower($options['report'])) {
+	case 'byage':
+		display_matrix($age_data);
+		break;
+	default:
+		foreach ($summary_data as $lga => $lga_summary) {
+			echo "Overall volunteer rate for " . $lga . ": ";
+			if ($lga_summary['total']==0) {
+				echo "No population data\n";
+			} else {
+				echo round($lga_summary['volunteers'] / $lga_summary['total'] * 100, $options['precision']) . "%\n";
+			}
 		}
-	}
+		break;
 }
-
-if (array_key_exists('outfile', $options)) {
-	$outfile_handle = fopen($options['outfile'], 'w');
-
-	// Headers first
-	fputcsv($outfile_handle, $datafile_keys);
-	foreach ($datafile_data as $record) {
-		fputcsv($outfile_handle, $record);
-	}
-
-	if (array_key_exists('v', $options)) echo "Matching records saved to " . $options['outfile'] . "\n";
-}
-
 
 /**
  * SUPPORT FUNCTIONS
@@ -146,4 +148,45 @@ function update_total(&$data, $newdata, $key) {
 	}
 
 	$data[$newdata['Region']]['ages'][$newdata['AGE']][$key] = $total + $newdata['Value'];
+}
+
+function display_matrix($data) {
+	global $options;
+
+	// Get the array keys so we can calculat column widths
+	$d1_keys = array_unique(array_keys($data));
+	$d1_width = max(array_map('strlen', $d1_keys)) + 2;
+
+	$d2_keys = array_unique(call_user_func_array('array_merge', array_map('array_keys', array_values($data))));
+	$d2_width = max(array_map('strlen', $d2_keys)) + 2;
+
+	// Formatting strings
+	//
+	// OK, this is complicated. But essentially we're just laying out the spacing of the grid.
+	// It's just a lot of math based on the length of the array keys and the precision of the
+	// calculations
+	$format_data = "|%" . (7 + $options['precision']) . "." . $options['precision'] . "f%% ";
+	$format_header = "|%" . max([$d2_width, 8 + $options['precision']]) . "s ";
+	$row_separator = str_repeat('-', $d1_width + ((max([$d2_width, 8 + $options['precision']]) + 2) * count($d2_keys)));
+
+	// Output headers
+	echo sprintf("%-" . $d1_width . "s", '');
+	foreach ($d2_keys as $key) {
+		echo sprintf($format_header, $key);
+	}
+	echo "\n" . $row_separator . "\n";
+
+	foreach ($data as $lga_key => $lga_data) {
+		echo sprintf("%-" . $d1_width . "s", $lga_key);
+		foreach ($d2_keys as $d2) {
+			if (array_key_exists($d2, $lga_data)) {
+				$val = $lga_data[$d2];
+			} else {
+				$val = '';
+			}
+			echo sprintf($format_data, $val);
+		}
+		echo "\n";
+	}
+
 }
