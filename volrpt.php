@@ -16,7 +16,13 @@ $options = getopt('v', [
 	'lga:',
 	'datafile:',
 	'outfile::',
+	'precision::',
 ]);
+
+// Default parameters
+$options += [
+	'precision' => 2
+];
 
 if (! (array_key_exists('lga', $options) && array_key_exists('datafile', $options))) {
 	// Print usage instructions
@@ -76,6 +82,10 @@ if ($datafile_handle) {
  * Wrapup code — output any data to the user
  */
 if (array_key_exists('v', $options)) echo "Total applicable records read: " . count($datafile_data) . "\n";
+
+foreach ($summary_data as $lga => $lga_summary) {
+	echo "Average volunteer rate for " . $lga . ": " . round($lga_summary['volunteers'] / $lga_summary['total'] * 100, $options['precision']) . "%\n";
+}
 
 if (array_key_exists('outfile', $options)) {
 	$outfile_handle = fopen($options['outfile'], 'w');
