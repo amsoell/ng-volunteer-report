@@ -36,6 +36,11 @@ if (array_key_exists('lga', $options)) {
 	$options['lga'] = explode(',', $options['lga']);
 }
 
+// Look for configuration file for database connection details
+if (file_exists('.volrpt')) {
+	$db_config = parse_ini_file('.volrpt', true);
+}
+
 /**
  * Process the datafile
  */
@@ -46,6 +51,27 @@ if ($datafile_handle) {
 	// Get the datafile keys
 	$datafile_keys = fgetcsv($datafile_handle);
 	$summary_data = [];
+
+	// If database parameters are set, add the data for advanced reporting
+	if (isset($db_config['database'])) {
+		if (array_key_exists('v', $options)) echo "Establishing database connection\n";
+		$db = new mysqli(	$db_config['database']['hostname'],
+							$db_config['database']['username'],
+							$db_config['database']['password'],
+							$db_config['database']['database']);
+		if ($db->connect_error) die('Could not make database connection: ' .  mysqli_connect_error());
+
+		// Delete the existing table and create it again
+		$db->query('DROP TABLE IF EXISTS data');
+		$db->query('
+			CREATE TABLE data (
+				id    int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+				lga   varchar(50) NOT NULL,
+				age   varchar(50) NOT NULL,
+				type  varchar(20) NOT NULL,
+				value int NOT NULL
+			)');
+	}
 
 	// Get the data
 	while ($chunk = fgetcsv($datafile_handle)) {
@@ -61,10 +87,12 @@ if ($datafile_handle) {
 			switch (strtoupper($chunk['VOLWP'])) {
 				case VOLWP_TOTAL:
 					update_total($summary_data, $chunk, 'total');
+					add_to_database($db, $chunk);
 
 					break;
 				case VOLWP_VOLUNTEER:
 					update_total($summary_data, $chunk, 'volunteers');
+					add_to_database($db, $chunk);
 
 					break;
 				case VOLWP_NOTAVOLUNTEER:
@@ -100,7 +128,7 @@ foreach ($summary_data as $lga_key => $lga_data) {
 /**
  * Wrapup code — output any data to the user
  */
-if (array_key_exists('v', $options)) echo "Total applicable records read: " . count($datafile_data) . "\n";
+if (array_key_exists('v', $options)) echo "Total applicable records read: " . count($summary_data) . "\n";
 
 switch (strtolower($options['report'])) {
 	case 'byage':
@@ -147,6 +175,12 @@ function update_total(&$data, $newdata, $key) {
 	}
 
 	$data[$newdata['Region']]['ages'][$newdata['AGE']][$key] = $total + $newdata['Value'];
+}
+
+function add_to_database($db, $data) {
+	$sql = $db->prepare("INSERT INTO data (lga, age, type, value) VALUES (?, ?, ?, ?)");
+	$sql->bind_param('sssi', $data['Region'], $data['AGE'], $data['VOLWP'], $data['Value']);
+	$sql->execute();
 }
 
 function display_matrix($data) {

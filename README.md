@@ -24,3 +24,11 @@ Get volunteer data by age group for specific LGAs
 Specify output precision
 
 `volrpt.php --datafile <path> --precision=5`
+
+## Advanced reports
+
+Advanced reports require the use of a MySQL database. To take advantage of this functionality, copy the `.volrpt-example` file to `.volrpt` and set your local database credentials. **Note**: Running this command will delete the `data` table within the database you specify.
+
+Once the configuration file has been set, you can run the advanced report with:
+
+`volrpt.php --datafile <path> --report=advanced`
