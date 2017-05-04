@@ -3,6 +3,10 @@ volunteer-report
 
 PHP-based command line utility to parse Australian census data
 
+## Requirements
+
+Requires PHP 5.6 or greater
+
 ## Usage
 
 Get summary data by LGA

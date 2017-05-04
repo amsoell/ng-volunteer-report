@@ -65,11 +65,11 @@ if ($datafile_handle) {
 		$db->query('DROP TABLE IF EXISTS data');
 		$db->query('
 			CREATE TABLE data (
-				id    int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+				state varchar(50) NOT NULL,
 				lga   varchar(50) NOT NULL,
-				age   varchar(50) NOT NULL,
-				type  varchar(20) NOT NULL,
-				value int NOT NULL
+				total int NOT NULL DEFAULT 0,
+				nonvolunteers int NOT NULL DEFAULT 0,
+				PRIMARY KEY (state, lga)
 			)');
 	}
 
@@ -87,16 +87,16 @@ if ($datafile_handle) {
 			switch (strtoupper($chunk['VOLWP'])) {
 				case VOLWP_TOTAL:
 					update_total($summary_data, $chunk, 'total');
-					add_to_database($db, $chunk);
+					add_to_database($db, $chunk, 'total');
 
 					break;
 				case VOLWP_VOLUNTEER:
 					update_total($summary_data, $chunk, 'volunteers');
-					add_to_database($db, $chunk);
 
 					break;
 				case VOLWP_NOTAVOLUNTEER:
 					update_total($summary_data, $chunk, 'nonvolunteers');
+					add_to_database($db, $chunk, 'nonvolunteers');
 
 					break;
 				case VOLWP_NOTSTATED:
@@ -121,7 +121,6 @@ foreach ($summary_data as $lga_key => $lga_data) {
 		}
 
 		$age_data[$lga_key][$age_key] = $val;
-		//echo "$lga_key | $age_key\n";
 	}
 }
 
@@ -177,9 +176,10 @@ function update_total(&$data, $newdata, $key) {
 	$data[$newdata['Region']]['ages'][$newdata['AGE']][$key] = $total + $newdata['Value'];
 }
 
-function add_to_database($db, $data) {
-	$sql = $db->prepare("INSERT INTO data (lga, age, type, value) VALUES (?, ?, ?, ?)");
-	$sql->bind_param('sssi', $data['Region'], $data['AGE'], $data['VOLWP'], $data['Value']);
+function add_to_database($db, $data, $key) {
+	// Insert record or update existing record
+	$sql = $db->prepare("INSERT INTO data (state, lga, ".$key.") VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE ".$key."=".$key."+?");
+	$sql->bind_param('ssii', $data['State'], $data['Region'], $data['Value'], $data['Value']);
 	$sql->execute();
 }
 
