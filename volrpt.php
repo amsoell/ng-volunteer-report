@@ -72,6 +72,7 @@ if ($datafile_handle) {
 					break;
 				case VOLWP_NOTSTATED:
 					update_total($summary_data, $chunk, 'unstated');
+
 					break;
 			}
 		}
@@ -86,11 +87,20 @@ if ($datafile_handle) {
 if (array_key_exists('v', $options)) echo "Total applicable records read: " . count($datafile_data) . "\n";
 
 foreach ($summary_data as $lga => $lga_summary) {
-	echo "Average volunteer rate for " . $lga . ": ";
+	echo "Overall volunteer rate for " . $lga . ": ";
 	if ($lga_summary['total']==0) {
 		echo "No population data\n";
 	} else {
 		echo round($lga_summary['volunteers'] / $lga_summary['total'] * 100, $options['precision']) . "%\n";
+	}
+
+	foreach ($lga_summary['ages'] as $age => $age_data) {
+		echo "\tVolunteer rate for " . $age . " age range: ";
+		if ($age_data['total']==0) {
+			echo "No data for age range\n";
+		} else {
+			echo round($age_data['volunteers'] / $age_data['total'] * 100, $options['precision']) . "%\n";
+		}
 	}
 }
 
@@ -119,6 +129,7 @@ if (array_key_exists('outfile', $options)) {
  * @param  String $key     Array key to add new data to
  */
 function update_total(&$data, $newdata, $key) {
+	// Update total
 	if (isset($data[$newdata['Region']][$key])) {
 		$total = $data[$newdata['Region']][$key];
 	} else {
@@ -126,4 +137,13 @@ function update_total(&$data, $newdata, $key) {
 	}
 
 	$data[$newdata['Region']][$key] = $total + $newdata['Value'];
+
+	// Update age data
+	if (isset($data[$newdata['Region']]['ages'][$newdata['AGE']][$key])) {
+		$total = $data[$newdata['Region']]['ages'][$newdata['AGE']][$key];
+	} else {
+		$total = 0;
+	}
+
+	$data[$newdata['Region']]['ages'][$newdata['AGE']][$key] = $total + $newdata['Value'];
 }
