@@ -30,6 +30,8 @@ if (! (array_key_exists('lga', $options) && array_key_exists('datafile', $option
 	exit;
 }
 
+$options['lga'] = explode(',', $options['lga']);
+
 /**
  * Process the datafile
  */
@@ -50,7 +52,7 @@ if ($datafile_handle) {
 		// Key up the data for easier access
 		$chunk = array_combine($datafile_keys, $chunk);
 
-		if ($chunk['Region'] == $options['lga']) {
+		if (in_array($chunk['Region'], $options['lga'])) {
 			// This is data we care about; Hang on to it.
 			$chunk = array_combine($datafile_keys, $chunk);
 			switch (strtoupper($chunk['VOLWP'])) {
