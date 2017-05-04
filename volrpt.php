@@ -16,7 +16,6 @@ $options = getopt('v', [
 	'lga::',
 	'datafile:',
 	'report::',
-	'outfile::',
 	'precision::',
 ]);
 
@@ -28,7 +27,7 @@ $options += [
 
 if (! (array_key_exists('datafile', $options))) {
 	// Print usage instructions
-	echo 'Usage: ' . basename(__FILE__) . ' --datafile=<datafile.csv> --lga=<LGA>';
+	echo 'Usage: ' . basename(__FILE__) . ' --datafile=<path> [--lga=<LGA>] [--precision=2] [--report=<report>]';
 	exit;
 }
 
