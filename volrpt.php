@@ -7,6 +7,11 @@
  * Pull in command line parameters
  * Display usage
  */
+define('VOLWP_TOTAL', 'TOT');
+define('VOLWP_NOTAVOLUNTEER', 1);
+define('VOLWP_VOLUNTEER', 2);
+define('VOLWP_NOTSTATED', 'Z');
+
 $options = getopt('v', [
 	'lga:',
 	'datafile:',
@@ -29,6 +34,7 @@ if ($datafile_handle) {
 	// Get the datafile keys
 	$datafile_keys = fgetcsv($datafile_handle);
 	$datafile_data = [];
+	$summary_data = [];
 
 	// Get the data
 	while ($chunk = fgetcsv($datafile_handle)) {
@@ -40,7 +46,26 @@ if ($datafile_handle) {
 
 		if ($chunk['Region'] == $options['lga']) {
 			// This is data we care about; Hang on to it.
-			$datafile_data[] = array_combine($datafile_keys, $chunk);
+			$chunk = array_combine($datafile_keys, $chunk);
+			switch (strtoupper($chunk['VOLWP'])) {
+				case VOLWP_TOTAL:
+					update_total($summary_data, $chunk, 'total');
+
+					break;
+				case VOLWP_VOLUNTEER:
+					update_total($summary_data, $chunk, 'volunteers');
+
+					break;
+				case VOLWP_NOTAVOLUNTEER:
+					update_total($summary_data, $chunk, 'nonvolunteers');
+
+					break;
+				case VOLWP_NOTSTATED:
+					update_total($summary_data, $chunk, 'unstated');
+					break;
+			}
+
+			$datafile_data[] = $chunk;
 		}
 	}
 } else {
@@ -65,3 +90,23 @@ if (array_key_exists('outfile', $options)) {
 }
 
 
+/**
+ * SUPPORT FUNCTIONS
+ */
+
+/**
+ * update_total
+ *
+ * @param  Array &$data   Array data to update
+ * @param  Array $newdata New data to process
+ * @param  String $key     Array key to add new data to
+ */
+function update_total(&$data, $newdata, $key) {
+	if (isset($data[$newdata['Region']][$key])) {
+		$total = $data[$newdata['Region']][$key];
+	} else {
+		$total = 0;
+	}
+
+	$data[$newdata['Region']][$key] = $total + $newdata['Value'];
+}
