@@ -12,6 +12,7 @@ define('VOLWP_NOTAVOLUNTEER', 1);
 define('VOLWP_VOLUNTEER', 2);
 define('VOLWP_NOTSTATED', 'Z');
 
+// Get command line parameters
 $options = getopt('v', [
 	'lga::',
 	'datafile:',
@@ -19,7 +20,7 @@ $options = getopt('v', [
 	'precision::',
 ]);
 
-// Default parameters
+// Fallback defaults
 $options += [
 	'precision' => 2,
 	'report'    => 'overall'
@@ -53,7 +54,7 @@ if ($datafile_handle) {
 	$summary_data = [];
 
 	// If database parameters are set, add the data for advanced reporting
-	if (isset($db_config['database'])) {
+	if (($options['report'] == 'advanced') && isset($db_config['database'])) {
 		if (array_key_exists('v', $options)) echo "Establishing database connection\n";
 		$db = new mysqli(	$db_config['database']['hostname'],
 							$db_config['database']['username'],
@@ -87,7 +88,7 @@ if ($datafile_handle) {
 			switch (strtoupper($chunk['VOLWP'])) {
 				case VOLWP_TOTAL:
 					update_total($summary_data, $chunk, 'total');
-					add_to_database($db, $chunk, 'total');
+					if (isset($db)) add_to_database($db, $chunk, 'total');
 
 					break;
 				case VOLWP_VOLUNTEER:
@@ -96,7 +97,7 @@ if ($datafile_handle) {
 					break;
 				case VOLWP_NOTAVOLUNTEER:
 					update_total($summary_data, $chunk, 'nonvolunteers');
-					add_to_database($db, $chunk, 'nonvolunteers');
+					if (isset($db)) add_to_database($db, $chunk, 'nonvolunteers');
 
 					break;
 				case VOLWP_NOTSTATED:
@@ -106,6 +107,8 @@ if ($datafile_handle) {
 			}
 		}
 	}
+
+	fclose($datafile_handle);
 } else {
 	die("Datafile is unreadable");
 }
@@ -130,6 +133,27 @@ foreach ($summary_data as $lga_key => $lga_data) {
 if (array_key_exists('v', $options)) echo "Total applicable records read: " . count($summary_data) . "\n";
 
 switch (strtolower($options['report'])) {
+	case 'advanced':
+		if (!isset($db)) die("Invalid database connection; Check your .volrpt configuration file");
+
+		// Loop one: Get all states and a count of LGAs in each state that have less than 4 vowels
+		$rs_states = $db->query("SELECT state, COUNT(lga) AS lga_count FROM data WHERE lga NOT REGEXP '.*[aeiou].*[aeiou].*[aeiou].*[aeiou].*' AND state!=lga AND state!='South Australia' group by state");
+		while ($rec_state = $rs_states->fetch_object()) {
+			// Variable these up so we don't get a "by reference" error in bind_param
+			$state = (string)$rec_state->state;
+			$count = max((int)$rec_state->lga_count - 3, 0); // If there are less than 3 LGAs I guess we get zero?
+
+			echo "State: $rec_state->state\n";
+
+			// Loop two: For each state, get all LGAs that have less than 4 vowels.
+			// Order by nonvolunteer count and imit to the count from the previous query minus 3 to eliminate the bottom 3 results
+			$rs_lga = $db->query("SELECT lga, nonvolunteers FROM data WHERE state='" . addslashes($state) . "' AND lga NOT REGEXP '.*[aeiou].*[aeiou].*[aeiou].*[aeiou].*' ORDER BY nonvolunteers DESC LIMIT " . addslashes($count));
+			while ($rec_lga = $rs_lga->fetch_object()) {
+				echo "\t" . $rec_lga->lga . " nonvolunteer count: " . $rec_lga->nonvolunteers . "\n";
+			}
+		}
+
+		break;
 	case 'byage':
 		display_matrix($age_data);
 		break;
@@ -144,6 +168,8 @@ switch (strtolower($options['report'])) {
 		}
 		break;
 }
+
+if (isset($db)) $db->close();
 
 /**
  * SUPPORT FUNCTIONS
