@@ -1,7 +1,29 @@
 volunteer-report
 ===
 
-PHP-based command line utility to parse Australian census data
+**ng-volunteer-report** is the result of a code challenge presented in 2017. The result is a PHP-based command line utility used to parse Australian census data
+
+**Project Specifications**
+
+> Using the data in the file ["B19 Voluntary Work for an Organisation or Group by Age by Sex"](http://stat.data.abs.gov.au/Index.aspx?DataSetCode=ABS_CENSUS2011_B19) from the 2011 Australian Census:
+> 
+> Do the following tasks WITHOUT a database:
+> 
+> 1.  Calculate the average percentage of volunteers compared with LGA's population size
+>     * For one LGA; or
+>     * For up to 10 LGA's (specified by the "State" and "Region" CSV
+>       fields); or
+>     * For all LGA's
+> 2.  Generate a 2D matrix of "Age" to "Percent of volunteers"
+>     * For one LGA; or
+>     * For up to 20 LGA's (specified by the "State" and "Region" CSV
+>       fields)
+> 
+> Do the following task WITH a database:
+> 
+> 3.  For each state / territory in Australia except South Australia, calculate the total actual number (i.e. not percentage) of non-volunteers, for all LGA's that have less than or equal to 3 vowels in their name (exactly as it appears in the "Region" CSV field), excluding the 3 LGA's for each state / territory that have the lowest number of non-volunteers
+> 
+> Write a command-line script that exposes the above three pieces of functionality, with options / arguments as required, and that prints out the results as lines of text (or as a simple textual table) to the terminal.
 
 ## Requirements
 
